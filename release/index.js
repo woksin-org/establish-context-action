@@ -1,54 +1,6 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 75:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-// Copyright (c) woksin-org. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ContextEstablishers = void 0;
-/**
- * Represents an implementation of {@link IContextEstablishers}.
- *
- * @class ContextEstablishers
- * @implements {IContextEstablishers}
- */
-class ContextEstablishers {
-    /**
-     * Initializes a new instance of {@link ContextEstablishers}.
-     * @param {ICanEstablishContext[]} establishers - The implementations of context establishers to use.
-     */
-    constructor(...establishers) {
-        this._establishers = establishers;
-    }
-    /**
-     * @inheritdoc
-     */
-    establishFrom(context) {
-        const establisher = this.getEstablisherFor(context);
-        return establisher?.establish(context) ?? Promise.resolve(undefined);
-    }
-    getEstablisherFor(context) {
-        let establisher;
-        for (const _establisher of this._establishers) {
-            if (_establisher.canEstablishFrom(context)) {
-                if (establisher !== undefined) {
-                    throw new Error(`There are multiple context establishers that can establish from context ${context}`);
-                }
-                establisher = _establisher;
-            }
-        }
-        return establisher;
-    }
-}
-exports.ContextEstablishers = ContextEstablishers;
-
-
-/***/ }),
-
 /***/ 9912:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -81,15 +33,17 @@ class MergedPullRequestContextEstablisher {
      * @param {string} _environmentBranch - An environment to use for prereleases.
      * @param {IReleaseTypeExtractor} _releaseTypeExtractor - The release type extractor to use for extracting the release type from Pull Request labels.
      * @param {IFindCurrentVersion} _currentVersionFinder - The current version finder to use for finding the current version.
+     * @param {IVersionIncrementor} _versionIncrementor - The version incrementor.
      * @param {InstanceType<typeof GitHub>} _github - The github REST api.
      * @param {ILogger} _logger - The logger to use for logging.
      */
-    constructor(_releaseBranches, _prereleaseBranches, _environmentBranch, _releaseTypeExtractor, _currentVersionFinder, _github, _logger) {
+    constructor(_releaseBranches, _prereleaseBranches, _environmentBranch, _releaseTypeExtractor, _currentVersionFinder, _versionIncrementor, _github, _logger) {
         this._releaseBranches = _releaseBranches;
         this._prereleaseBranches = _prereleaseBranches;
         this._environmentBranch = _environmentBranch;
         this._releaseTypeExtractor = _releaseTypeExtractor;
         this._currentVersionFinder = _currentVersionFinder;
+        this._versionIncrementor = _versionIncrementor;
         this._github = _github;
         this._logger = _logger;
     }
@@ -97,21 +51,27 @@ class MergedPullRequestContextEstablisher {
      * @inheritdoc
      */
     canEstablishFrom(context) {
+        if (context.payload.pull_request === undefined)
+            return [false, 'Not triggered by a Pull Request'];
+        if (context.payload.action !== 'closed')
+            return [false, 'Not triggered by Pull Request closed event'];
+        if (!context.payload.pull_request?.merged)
+            return [false, 'Not triggered by Pull Request being merged'];
         const branchName = path_1.default.basename(context.ref);
         const correctBranch = (this._releaseBranches.includes(branchName) ||
             branchName === this._environmentBranch ||
             this.isPrereleaseBranch(branchName));
-        return context.payload.pull_request !== undefined
-            && context.payload.action === 'closed'
-            && context.payload.pull_request?.merged
-            && correctBranch;
+        return correctBranch ? [true] : [false, 'Not merged to a release or prerelease branch'];
     }
     /**
      * @inheritdoc
      */
     async establish(context) {
-        if (!this.canEstablishFrom(context))
-            throw new Error('Cannot establish merged pull request context');
+        const [canEstablish, cannotEstablishReason] = this.canEstablishFrom(context);
+        if (!canEstablish) {
+            this._logger.warning(`Cannot establish context. ${cannotEstablishReason}`);
+            return { shouldPublish: false };
+        }
         this._logger.info('Establishing context for merged pull build');
         const { owner, repo } = context.repo;
         const mergedPr = await this.getMergedPr(owner, repo, context.sha);
@@ -151,6 +111,7 @@ class MergedPullRequestContextEstablisher {
             shouldPublish: true,
             releaseType,
             currentVersion: currentVersion.version,
+            newVersion: this._versionIncrementor.increment(currentVersion.version, releaseType),
             pullRequestBody: mergedPr.body ?? undefined,
             pullRequestUrl: mergedPr.html_url
         };
@@ -520,6 +481,48 @@ exports.VersionFromFileVersionFinder = VersionFromFileVersionFinder;
 
 /***/ }),
 
+/***/ 9347:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+// Copyright (c) Dolittle. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VersionIncrementor = void 0;
+const semver_1 = __nccwpck_require__(1383);
+/**.
+ * Represents an implementation of {IVersionIncrementor}
+ *
+ * @export
+ * @class VersionIncrementor
+ * @implements {IVersionIncrementor}
+ */
+class VersionIncrementor {
+    /**
+     * Instantiates an instance of VersionIncrementor.
+     * @param {ILogger} _logger - The logger.
+     */
+    constructor(_logger) {
+        this._logger = _logger;
+    }
+    /**
+     * @inheritdoc
+     */
+    increment(version, releaseType) {
+        const semverVersion = new semver_1.SemVer(version);
+        this._logger.info(`Incrementing version '${version}' with release type '${releaseType}'`);
+        const newVersion = semverVersion.inc(releaseType);
+        if (newVersion === null)
+            throw new Error(`'${releaseType}' is not a valid SemVer release type`);
+        return newVersion.version;
+    }
+}
+exports.VersionIncrementor = VersionIncrementor;
+
+
+/***/ }),
+
 /***/ 3220:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -528,7 +531,7 @@ exports.VersionFromFileVersionFinder = VersionFromFileVersionFinder;
 // Copyright (c) woksin-org. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.VersionFromFileVersionFinder = exports.SemVerVersionSorter = exports.GitHubTagsVersionFetcher = exports.DefinedVersionFinder = exports.CurrentVersionFinder = void 0;
+exports.VersionIncrementor = exports.VersionFromFileVersionFinder = exports.SemVerVersionSorter = exports.GitHubTagsVersionFetcher = exports.DefinedVersionFinder = exports.CurrentVersionFinder = void 0;
 var CurrentVersionFinder_1 = __nccwpck_require__(244);
 Object.defineProperty(exports, "CurrentVersionFinder", ({ enumerable: true, get: function () { return CurrentVersionFinder_1.CurrentVersionFinder; } }));
 var DefinedVersionFinder_1 = __nccwpck_require__(2328);
@@ -539,6 +542,8 @@ var SemVerVersionSorter_1 = __nccwpck_require__(2930);
 Object.defineProperty(exports, "SemVerVersionSorter", ({ enumerable: true, get: function () { return SemVerVersionSorter_1.SemVerVersionSorter; } }));
 var VersionFromFileVersionFinder_1 = __nccwpck_require__(3158);
 Object.defineProperty(exports, "VersionFromFileVersionFinder", ({ enumerable: true, get: function () { return VersionFromFileVersionFinder_1.VersionFromFileVersionFinder; } }));
+var VersionIncrementor_1 = __nccwpck_require__(9347);
+Object.defineProperty(exports, "VersionIncrementor", ({ enumerable: true, get: function () { return VersionIncrementor_1.VersionIncrementor; } }));
 
 
 /***/ }),
@@ -13657,7 +13662,6 @@ const github_1 = __nccwpck_require__(5438);
 const github_actions_shared_logging_1 = __nccwpck_require__(5720);
 const Version_1 = __nccwpck_require__(3220);
 const ReleaseTypeExtractor_1 = __nccwpck_require__(5856);
-const ContextEstablishers_1 = __nccwpck_require__(75);
 const MergedPullRequestContextEstablisher_1 = __nccwpck_require__(9912);
 const VersionFromFileVersionFinder_1 = __nccwpck_require__(3158);
 const GitHubTagsVersionFetcher_1 = __nccwpck_require__(2528);
@@ -13696,41 +13700,33 @@ async function run() {
             logger.info('Using tag strategy for finding version');
             currentVersionFinder = new Version_1.CurrentVersionFinder(new GitHubTagsVersionFetcher_1.GitHubTagsVersionFetcher(github_1.context, octokit, logger), new Version_1.SemVerVersionSorter(logger), logger);
         }
-        const contextEstablishers = new ContextEstablishers_1.ContextEstablishers(new MergedPullRequestContextEstablisher_1.MergedPullRequestContextEstablisher(releaseBranches, prereleaseBranches, environmentBranch, releaseTypeExtractor, currentVersionFinder, octokit, logger));
+        const contextEstablisher = new MergedPullRequestContextEstablisher_1.MergedPullRequestContextEstablisher(releaseBranches, prereleaseBranches, environmentBranch, releaseTypeExtractor, currentVersionFinder, new Version_1.VersionIncrementor(logger), octokit, logger);
         logger.info('Establishing context');
-        const buildContext = await contextEstablishers.establishFrom(github_1.context);
-        if (buildContext === undefined) {
-            logger.debug('No establisher found for context');
-            logger.debug(JSON.stringify(github_1.context, undefined, 2));
-            outputDefault();
-        }
-        else {
-            outputContext(buildContext);
-        }
+        const buildContext = await contextEstablisher.establish(github_1.context);
+        outputContext(buildContext);
     }
     catch (error) {
         fail(error);
     }
 }
 exports.run = run;
-function output(shouldPublish, currentVersion, releaseType, prBody, prUrl) {
-    logger.info('Outputting: ');
-    logger.info(`'should-publish': ${shouldPublish}`);
-    logger.info(`'current-version': ${currentVersion}`);
-    logger.info(`'release-type': ${releaseType}`);
-    logger.info(`'pr-body': ${prBody}`);
-    logger.info(`'pr-url': ${prUrl}`);
-    (0, core_1.setOutput)('should-publish', shouldPublish);
-    (0, core_1.setOutput)('current-version', currentVersion ?? '');
-    (0, core_1.setOutput)('release-type', releaseType ?? '');
-    (0, core_1.setOutput)('pr-body', prBody ?? '');
-    (0, core_1.setOutput)('pr-url', prUrl ?? '');
-}
 function outputContext(context) {
-    output(context.shouldPublish, context.currentVersion, context.releaseType, context.pullRequestBody, context.pullRequestUrl);
+    logger.info('Outputting: ');
+    logger.info(`'should-publish': ${context.shouldPublish}`);
+    logger.info(`'current-version': ${context.currentVersion}`);
+    logger.info(`'new-version': ${context.newVersion}`);
+    logger.info(`'release-type': ${context.releaseType}`);
+    logger.info(`'pr-body': ${context.pullRequestBody}`);
+    logger.info(`'pr-url': ${context.pullRequestUrl}`);
+    (0, core_1.setOutput)('should-publish', context.shouldPublish);
+    (0, core_1.setOutput)('current-version', context.currentVersion ?? '');
+    (0, core_1.setOutput)('new-version', context.newVersion ?? '');
+    (0, core_1.setOutput)('release-type', context.releaseType ?? '');
+    (0, core_1.setOutput)('pr-body', context.pullRequestBody ?? '');
+    (0, core_1.setOutput)('pr-url', context.pullRequestUrl ?? '');
 }
 function outputDefault() {
-    output(false);
+    outputContext({ shouldPublish: false });
 }
 function fail(error) {
     logger.error(error.message);
