@@ -1,3 +1,39 @@
+# [4.0.6] - 2023-9-12[PR: #9](https://github.com/woksin-org/establish-context-action/pull/9)
+## Summary
+
+Use yarn in scripts
+
+
+# [4.0.5] - 2023-9-12[PR: #8](https://github.com/woksin-org/establish-context-action/pull/8)
+## Summary
+
+Install bun
+
+
+# [4.0.4] - 2023-9-12[PR: #7](https://github.com/woksin-org/establish-context-action/pull/7)
+## Summary
+
+Use bun in CI
+
+
+# [4.0.3] - 2023-9-12[PR: #6](https://github.com/woksin-org/establish-context-action/pull/6)
+## Summary
+
+Try fix release workflow
+
+
+# [4.0.2] - 2023-9-12[PR: #5](https://github.com/woksin-org/establish-context-action/pull/5)
+## Summary
+
+Use Bun in CI for quicker builds
+
+
+# [4.0.1] - 2023-8-11 [PR: #4](https://github.com/woksin-org/establish-context-action/pull/4)
+## Summary
+
+Fix workflow
+
+
 # [4.0.0] - 2023-8-11 [PR: #2](https://github.com/woksin-org/establish-context-action/pull/2)
 ## Summary
 
