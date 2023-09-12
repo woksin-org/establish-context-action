@@ -1,3 +1,9 @@
+# [4.0.2] - 2023-9-12[PR: #5](https://github.com/woksin-org/establish-context-action/pull/5)
+## Summary
+
+Use Bun in CI for quicker builds
+
+
 # [4.0.1] - 2023-8-11 [PR: #4](https://github.com/woksin-org/establish-context-action/pull/4)
 ## Summary
 
