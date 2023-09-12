@@ -1,3 +1,9 @@
+# [4.0.5] - 2023-9-12[PR: #8](https://github.com/woksin-org/establish-context-action/pull/8)
+## Summary
+
+Install bun
+
+
 # [4.0.4] - 2023-9-12[PR: #7](https://github.com/woksin-org/establish-context-action/pull/7)
 ## Summary
 
