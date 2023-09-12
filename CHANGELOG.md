@@ -1,3 +1,9 @@
+# [4.0.4] - 2023-9-12[PR: #7](https://github.com/woksin-org/establish-context-action/pull/7)
+## Summary
+
+Use bun in CI
+
+
 # [4.0.3] - 2023-9-12[PR: #6](https://github.com/woksin-org/establish-context-action/pull/6)
 ## Summary
 
