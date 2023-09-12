@@ -1,3 +1,9 @@
+# [4.0.6] - 2023-9-12[PR: #9](https://github.com/woksin-org/establish-context-action/pull/9)
+## Summary
+
+Use yarn in scripts
+
+
 # [4.0.5] - 2023-9-12[PR: #8](https://github.com/woksin-org/establish-context-action/pull/8)
 ## Summary
 
