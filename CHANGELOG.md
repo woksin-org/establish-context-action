@@ -1,3 +1,9 @@
+# [4.0.7] - 2023-9-12[PR: #10](https://github.com/woksin-org/establish-context-action/pull/10)
+## Summary
+
+Use npx
+
+
 # [4.0.6] - 2023-9-12[PR: #9](https://github.com/woksin-org/establish-context-action/pull/9)
 ## Summary
 
